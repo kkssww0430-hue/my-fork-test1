@@ -3,11 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>테트리스 - 바이브 코딩 실습</title>
+  <title>테트리스</title>
   <style>
-    /* ===== 기본 레이아웃 ===== */
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
       background: #111827;
       display: flex;
@@ -17,104 +15,54 @@
       font-family: 'Consolas', monospace;
       color: #e2e8f0;
     }
-
-    .game-container {
-      display: flex;
-      gap: 24px;
-      align-items: flex-start;
-    }
-
-    /* ===== 게임 캔버스 ===== */
-    #gameCanvas {
-      border: 2px solid #334155;
-      background: #0f172a;
-      display: block;
-    }
-
-    /* ===== 사이드 패널 ===== */
-    .side-panel {
-      width: 150px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
+    .game-container { display: flex; gap: 12px; align-items: flex-start; }
+    .left-panel  { width: 120px; display: flex; flex-direction: column; gap: 10px; }
+    .right-panel { width: 120px; display: flex; flex-direction: column; gap: 10px; }
     .panel-box {
       background: #1e293b;
       border: 1px solid #334155;
       border-radius: 8px;
-      padding: 12px;
+      padding: 10px;
     }
-
     .panel-box h3 {
-      font-size: 11px;
+      font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 2px;
       color: #64748b;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
-
-    .panel-box .value {
-      font-size: 28px;
-      font-weight: bold;
-      color: #e2e8f0;
-    }
-
-    /* 게임 오버 오버레이 */
+    .panel-box .value { font-size: 24px; font-weight: bold; color: #e2e8f0; }
+    #holdCanvas, #nextCanvas { display: block; background: #0f172a; border-radius: 4px; }
+    .canvas-wrapper { position: relative; }
+    #gameCanvas { border: 2px solid #334155; background: #0f172a; display: block; }
     #overlay {
       display: none;
       position: absolute;
       top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.75);
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-      gap: 16px;
-      font-size: 24px;
-      color: #f1f5f9;
+      background: rgba(0,0,0,0.82);
+      justify-content: center; align-items: center;
+      flex-direction: column; gap: 16px;
+      font-size: 22px; color: #f1f5f9; border-radius: 2px;
     }
-
     #overlay.show { display: flex; }
-
     #restartBtn {
-      background: #3b82f6;
-      color: white;
-      border: none;
-      padding: 10px 28px;
-      font-size: 16px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-family: 'Consolas', monospace;
+      background: #3b82f6; color: white; border: none;
+      padding: 10px 28px; font-size: 15px; border-radius: 6px;
+      cursor: pointer; font-family: 'Consolas', monospace;
     }
     #restartBtn:hover { background: #2563eb; }
-
-    .canvas-wrapper {
-      position: relative;
-    }
-
-    /* 조작 안내 */
-    .controls {
-      font-size: 12px;
-      color: #475569;
-      line-height: 1.8;
-    }
+    .controls { font-size: 11px; color: #475569; line-height: 1.9; }
   </style>
 </head>
 <body>
-
 <div class="game-container">
 
-  <!-- 메인 캔버스 -->
-  <div class="canvas-wrapper">
-    <canvas id="gameCanvas" width="300" height="600"></canvas>
-    <div id="overlay">
-      <div>GAME OVER</div>
-      <button id="restartBtn">다시 시작</button>
+  <!-- 왼쪽: 홀드 + 스탯 -->
+  <div class="left-panel">
+    <div class="panel-box">
+      <h3>HOLD</h3>
+      <canvas id="holdCanvas" width="100" height="80"></canvas>
     </div>
-  </div>
-
-  <!-- 사이드 패널 -->
-  <div class="side-panel">
     <div class="panel-box">
       <h3>점수</h3>
       <div class="value" id="scoreDisplay">0</div>
@@ -130,326 +78,650 @@
     <div class="panel-box controls">
       <h3>조작법</h3>
       ← → 이동<br>
-      ↑ 회전<br>
-      ↓ 빠르게<br>
+      ↓ 소프트드롭<br>
+      Space 하드드롭<br>
+      ↑, X 시계회전<br>
+      Ctrl, Z 반시계<br>
+      A  180°회전<br>
+      Shift, C 홀드<br>
+    </div>
+  </div>
+
+  <!-- 메인 캔버스 -->
+  <div class="canvas-wrapper">
+    <canvas id="gameCanvas" width="300" height="600"></canvas>
+    <div id="overlay">
+      <div>GAME OVER</div>
+      <div id="finalScore" style="font-size:14px;color:#94a3b8;"></div>
+      <button id="restartBtn">다시 시작</button>
+    </div>
+  </div>
+
+  <!-- 오른쪽: 넥스트 5개 -->
+  <div class="right-panel">
+    <div class="panel-box">
+      <h3>NEXT</h3>
+      <canvas id="nextCanvas" width="100" height="400"></canvas>
     </div>
   </div>
 
 </div>
-
 <script>
 // ============================================================
-//  ■ 상수 정의 (Constants) — 이미 완성되어 있습니다
+//  ■ 상수
 // ============================================================
-const COLS        = 10;       // 보드 가로 칸 수
-const ROWS        = 20;       // 보드 세로 칸 수
-const BLOCK_SIZE  = 30;       // 한 칸의 픽셀 크기
+const COLS       = 10;
+const ROWS       = 20;
+const BLOCK_SIZE = 30;
+const PREVIEW_BS = 22;
 
-// 테트리스 블록 7종 모양 (1 = 블록 있음)
 const SHAPES = {
-  I: [[1, 1, 1, 1]],
-  O: [[1, 1],
-      [1, 1]],
-  T: [[0, 1, 0],
-      [1, 1, 1]],
-  S: [[0, 1, 1],
-      [1, 1, 0]],
-  Z: [[1, 1, 0],
-      [0, 1, 1]],
-  L: [[1, 0],
-      [1, 0],
-      [1, 1]],
-  J: [[0, 1],
-      [0, 1],
-      [1, 1]],
+  I: [
+    [0, 0, 0, 0],
+    [1, 1, 1, 1],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0]
+  ],
+  O: [[1,1],[1,1]],
+  T: [[0,1,0],[1,1,1]],
+  S: [[0,1,1],[1,1,0]],
+  Z: [[1,1,0],[0,1,1]],
+  L: [[1,0],[1,0],[1,1]],
+  J: [[0,1],[0,1],[1,1]],
 };
-
-// 블록별 색상
 const COLORS = {
-  I: '#00f0f0',
-  O: '#f0f000',
-  T: '#a000f0',
-  S: '#00f000',
-  Z: '#f00000',
-  L: '#f0a000',
-  J: '#0000f0',
+  I:'#00f0f0', O:'#f0f000', T:'#a000f0',
+  S:'#00f000', Z:'#f00000', L:'#f0a000', J:'#0000f0',
 };
+const PIECE_TYPES = Object.keys(SHAPES);
 
-// 블록 종류 목록
-const PIECE_TYPES = Object.keys(SHAPES);  // ['I','O','T','S','Z','L','J']
+// 점수 테이블 (× 현재 레벨)
+const LINE_POINTS = [0, 100, 300, 500, 800];
+
+// 락다운 설정
+const LOCK_DELAY = 700;   // 바닥 닿은 후 설치까지 대기 ms (회전/이동으로 리셋 가능)
+const LOCK_MAX   = 3000;  // 첫 착지 후 최대 대기 ms (리셋 불가)
 
 // ============================================================
-//  ■ 캔버스 초기화 — 이미 완성되어 있습니다
+//  ■ 캔버스
 // ============================================================
-const canvas = document.getElementById('gameCanvas');
-const ctx    = canvas.getContext('2d');
+const canvas     = document.getElementById('gameCanvas');
+const ctx        = canvas.getContext('2d');
+const holdCanvas = document.getElementById('holdCanvas');
+const hCtx       = holdCanvas.getContext('2d');
+const nextCanvas = document.getElementById('nextCanvas');
+const nCtx       = nextCanvas.getContext('2d');
 
 // ============================================================
 //  ■ 게임 상태 변수
 // ============================================================
-let board        = [];          // 2D 배열: null = 빈칸, 색상 문자열 = 블록
-let currentPiece = null;        // 현재 떨어지는 블록 { shape, color, x, y }
+let board        = [];
+let currentPiece = null;
+let holdPiece    = null;   // { type, shape, color }
+let holdUsed     = false;  // 이번 블록에서 홀드 사용 여부 — createPiece() 시 false로 초기화
+let nextQueue    = [];     // 다음 블록 타입 큐 (5개 유지)
+let bag          = [];     // 7-bag 가방
+
 let score        = 0;
 let level        = 1;
 let linesCleared = 0;
 let gameOver     = false;
 let lastTime     = 0;
-let dropInterval = 1000;        // ms — 자동 하강 간격 (레벨에 따라 줄어듦)
+let dropInterval = 1000;
+
+// 락다운 타이머
+// lockFirstTime : 이 블록이 처음 바닥에 닿은 타임스탬프 (LOCK_MAX 기준, 리셋 안 됨)
+// lockResetTime : 마지막으로 리셋된 타임스탬프 (LOCK_DELAY 기준, 회전/이동으로 리셋)
+let lockFirstTime  = 0;
+let lockResetTime  = 0;
 
 // ============================================================
-//  ■ 단일 블록 그리기 헬퍼 — 이미 완성되어 있습니다
-//    x, y: 보드 기준 칸 좌표
-//    color: 채울 색상 문자열
+//  ■ 7-bag 생성기
 // ============================================================
-function drawBlock(x, y, color) {
-  ctx.fillStyle = color;
-  ctx.fillRect(
-    x * BLOCK_SIZE,
-    y * BLOCK_SIZE,
-    BLOCK_SIZE - 1,
-    BLOCK_SIZE - 1
-  );
-  // 하이라이트 (윗면 밝게)
-  ctx.fillStyle = 'rgba(255,255,255,0.2)';
-  ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE - 1, 4);
+function refillBag() {
+  const shuffled = [...PIECE_TYPES].sort(() => Math.random() - 0.5);
+  bag.push(...shuffled);
+}
+function nextFromBag() {
+  if (bag.length === 0) refillBag();
+  return bag.shift();
+}
+function makePiece(type) {
+  const shape  = SHAPES[type].map(r => [...r]);
+  let startX = Math.floor((COLS - shape[0].length) / 2);
+  let startY = 0;
+
+  // I미노는 4x4 행렬이므로 초기 스폰 시 천장 위로 숨거나 치우치지 않게 y축을 약간 조절 (필요시)
+  if (type === 'I') {
+    startY = -1; // 천장 안쪽 보이지 않는 라인에서 자연스럽게 내려오도록 설정
+  }
+
+  return { type, shape, color: COLORS[type], x: startX, y: startY };
+}
+function fillQueue() {
+  while (nextQueue.length < 5) nextQueue.push(nextFromBag());
 }
 
 // ============================================================
-//  TODO 1: initBoard()
-//  ─────────────────────────────────────────────────────────
-//  보드를 초기화합니다.
-//  board 변수를 ROWS × COLS 크기의 2D 배열로 만들고,
-//  모든 칸을 null 로 채워주세요.
-//
-//  힌트:
-//    board = [];
-//    for (ROWS 만큼 반복) {
-//      board에 null이 COLS개인 배열을 push
-//    }
+//  ■ initBoard
 // ============================================================
 function initBoard() {
-  // TODO: 여기에 구현하세요
-
+  board = [];
+  for (let r = 0; r < ROWS; r++) board.push(new Array(COLS).fill(null));
 }
 
 // ============================================================
-//  TODO 2: createPiece()
-//  ─────────────────────────────────────────────────────────
-//  새 블록을 생성해서 currentPiece에 할당합니다.
-//  PIECE_TYPES 중 랜덤으로 하나를 선택하고,
-//  x 는 보드 중앙, y 는 0 으로 설정하세요.
-//
-//  반환(또는 할당)할 객체 형태:
-//    { shape: SHAPES[type], color: COLORS[type], x: ..., y: 0 }
-//
-//  힌트:
-//    const type = PIECE_TYPES[ Math.floor(Math.random() * PIECE_TYPES.length) ];
-//    중앙 x = Math.floor((COLS - shape[0].length) / 2)
+//  ■ createPiece
+//    큐 맨 앞 타입으로 currentPiece 생성
+//    holdUsed는 여기서만 false로 초기화 → 블록 설치 후에만 홀드 재활성화
 // ============================================================
 function createPiece() {
-  // TODO: 여기에 구현하세요
-
+  fillQueue();
+  const type   = nextQueue.shift();
+  fillQueue();
+  currentPiece = makePiece(type);
+  holdUsed     = false;   // ★ 새 블록이 생성될 때만 홀드 재활성화
+  lockFirstTime = 0;
+  lockResetTime = 0;
 }
 
 // ============================================================
-//  TODO 3: isCollision(piece, dx, dy)
-//  ─────────────────────────────────────────────────────────
-//  piece 를 (dx, dy) 만큼 이동했을 때 충돌이 발생하면 true,
-//  아니면 false 를 반환합니다.
-//
-//  검사해야 할 충돌 3가지:
-//    ① 왼쪽·오른쪽 벽 (x < 0 또는 x >= COLS)
-//    ② 바닥         (y >= ROWS)
-//    ③ 다른 블록    (board[y][x] !== null)
-//
-//  힌트:
-//    piece.shape 을 이중 for 로 순회하면서
-//    값이 1인 칸의 실제 보드 좌표 = (piece.x + col + dx, piece.y + row + dy)
+//  ■ isCollision
 // ============================================================
 function isCollision(piece, dx, dy) {
-  // TODO: 여기에 구현하세요
-
+  for (let row = 0; row < piece.shape.length; row++) {
+    for (let col = 0; col < piece.shape[row].length; col++) {
+      if (!piece.shape[row][col]) continue;
+      const nx = piece.x + col + dx;
+      const ny = piece.y + row + dy;
+      if (nx < 0 || nx >= COLS) return true;
+      if (ny >= ROWS) return true;
+      if (ny >= 0 && board[ny][nx] !== null) return true;
+    }
+  }
+  return false;
 }
 
 // ============================================================
-//  TODO 4: rotate(shape)
-//  ─────────────────────────────────────────────────────────
-//  2D 배열 shape 을 90도 시계 방향으로 회전한 새 배열을 반환합니다.
-//
-//  원리:
-//    회전 후 [row][col] = 원래 [rows-1-col][row]
-//    또는 전치(transpose) 후 각 행을 뒤집기
-//
-//  예시 (T 블록):
-//    입력:  [[0,1,0],[1,1,1]]
-//    출력:  [[1,0],[1,1],[1,0]]
-//
-//  힌트:
-//    const rows = shape.length, cols = shape[0].length;
-//    결과 배열 크기는 cols × rows (가로·세로 뒤바뀜)
+//  ■ 회전
 // ============================================================
-function rotate(shape) {
-  // TODO: 여기에 구현하세요
-
+function rotateCW(shape) {
+  const rows = shape.length, cols = shape[0].length;
+  const r = Array.from({ length: cols }, () => new Array(rows).fill(0));
+  for (let i = 0; i < rows; i++)
+    for (let j = 0; j < cols; j++)
+      r[j][rows - 1 - i] = shape[i][j];
+  return r;
+}
+function rotateCCW(shape) {
+  let s = shape;
+  for (let i = 0; i < 3; i++) s = rotateCW(s);
+  return s;
+}
+function rotate180(shape) {
+  return rotateCW(rotateCW(shape));
 }
 
+function tryRotate(newShape) {
+  const oldX = currentPiece.x;
+  const oldY = currentPiece.y;
+  const oldShape = currentPiece.shape;
+
+  const isI = (currentPiece.type === 'I');
+  
+  // ★ 구조물을 비집고 들어가기 위해 오프셋(테스트 포인트) 대폭 강화
+  const offsets = isI 
+    ? [
+        [0, 0],   // 제자리
+        [-1, 0], [1, 0],   // 좌우 1칸
+        [-2, 0], [2, 0],   // 좌우 2칸
+        [0, -1], [0, -2],  // 위로 1~2칸 (바닥 탈출)
+        [-1, -1], [1, -1], // 대각선 탈출
+        [-2, -1], [2, -1]
+      ]
+    : [
+        [0, 0],   // 제자리
+        [-1, 0], [1, 0],   // 1. 좌우에 벽/블록이 있을 때 밀어내기
+        [0, -1],           // 2. 바닥에 박혔을 때 위로 들기
+        [-1, -1], [1, -1], // 3. [핵심] 대각선으로 파고들기 (옆 구조물 비집고 들어가는 키)
+        [-2, 0], [2, 0],   // 4. 구석 탱이에 깊게 박혔을 때 좌우 2칸 밀기
+        [0, -2],           // 5. 바닥 깊숙이 박혔을 때 위로 2칸 들기
+        [-1, 1], [1, 1]    // 6. 아래쪽 대각선 공간 서치
+      ];
+
+  // 임시 회전
+  currentPiece.shape = newShape;
+
+  for (const [dx, dy] of offsets) {
+    currentPiece.x = oldX + dx;
+    currentPiece.y = oldY + dy;
+
+    // 빈 공간(비집고 들어갈 수 있는 틈새)을 찾았다면!
+    if (!isCollision(currentPiece, 0, 0)) {
+      
+      // ★ T-스핀 판정 (3-Corner Rule)
+      if (currentPiece.type === 'T') {
+        let corners = 0;
+        const cx = currentPiece.x + 1;
+        const cy = currentPiece.y + 1;
+        const checkPoints = [
+          {x: cx - 1, y: cy - 1}, {x: cx + 1, y: cy - 1},
+          {x: cx - 1, y: cy + 1}, {x: cx + 1, y: cy + 1}
+        ];
+        for (const pt of checkPoints) {
+          if (pt.x < 0 || pt.x >= COLS || pt.y >= ROWS) corners++;
+          else if (pt.y >= 0 && board[pt.y][pt.x] !== null) corners++;
+        }
+        if (corners >= 3) isTSpin = true;
+        else isTSpin = false;
+      } else {
+        isTSpin = false;
+      }
+
+      // ★ 바닥 밀착(Floor Snap)
+      // 회전 직전에 바닥에 닿아있었거나, 비집고 들어가는 과정에서 위로 들렸다면 다시 바닥으로 착지시킴
+      const wasOnGround = isCollision({ ...currentPiece, shape: oldShape, x: oldX, y: oldY }, 0, 1);
+      if (wasOnGround) {
+        while (!isCollision(currentPiece, 0, 1)) {
+          currentPiece.y += 1;
+        }
+      }
+
+      if (lockFirstTime > 0) lockResetTime = performance.now();
+      return true;
+    }
+  }
+
+  // 실패 시 원상복구
+  currentPiece.x = oldX;
+  currentPiece.y = oldY;
+  currentPiece.shape = oldShape;
+  return false;
+}
 // ============================================================
-//  TODO 5: placePiece()
-//  ─────────────────────────────────────────────────────────
-//  currentPiece 를 board 에 고정시킵니다.
-//  shape 배열을 순회하며 값이 1인 칸을
-//  board[y][x] = currentPiece.color 로 설정하세요.
+//  ■ placePiece
 // ============================================================
 function placePiece() {
-  // TODO: 여기에 구현하세요
-
+  for (let row = 0; row < currentPiece.shape.length; row++)
+    for (let col = 0; col < currentPiece.shape[row].length; col++)
+      if (currentPiece.shape[row][col]) {
+        const bx = currentPiece.x + col;
+        const by = currentPiece.y + row;
+        if (by >= 0) board[by][bx] = currentPiece.color;
+      }
 }
 
 // ============================================================
-//  TODO 6: clearLines()
-//  ─────────────────────────────────────────────────────────
-//  board 에서 모든 칸이 채워진 행(row)을 제거하고
-//  위의 행들을 아래로 내려옵니다. 점수도 계산해주세요.
-//
-//  점수 계산 예시 (1줄=100, 2줄=300, 3줄=500, 4줄=800):
-//    const points = [0, 100, 300, 500, 800];
-//    score += points[제거된 줄 수] * level;
-//
-//  힌트:
-//    가득 찬 행 = 모든 칸이 null 이 아닌 행
-//    제거 후: board.unshift(new Array(COLS).fill(null))  ← 맨 위에 빈 행 추가
-//
-//  linesCleared 와 level 도 갱신하세요.
-//    linesCleared += 제거한 줄 수;
-//    level = Math.floor(linesCleared / 10) + 1;
-//    dropInterval = Math.max(100, 1000 - (level - 1) * 100);
+//  ■ clearLines
 // ============================================================
 function clearLines() {
-  // TODO: 여기에 구현하세요
-
+  let count = 0;
+  for (let r = ROWS - 1; r >= 0; r--) {
+    if (board[r].every(cell => cell !== null)) {
+      board.splice(r, 1);
+      board.unshift(new Array(COLS).fill(null));
+      count++;
+      r++;
+    }
+  }
+  if (count > 0) {
+    score        += LINE_POINTS[Math.min(count, 4)] * level;
+    linesCleared += count;
+    level         = Math.floor(linesCleared / 10) + 1;
+    dropInterval  = Math.max(100, 1000 - (level - 1) * 100);
+  }
 }
 
 // ============================================================
-//  TODO 7: draw()
-//  ─────────────────────────────────────────────────────────
-//  매 프레임 화면을 다시 그립니다.
-//
-//  순서:
-//    ① 배경 지우기 (ctx.fillStyle = '#0f172a' 후 fillRect 전체)
-//    ② board 를 순회하며 null 이 아닌 칸을 drawBlock 으로 그리기
-//    ③ currentPiece 가 있으면 shape 을 순회하며 그리기
-//
-//  이미 배경 지우기(①)는 아래에 작성되어 있습니다.
+//  ■ 고스트(유령) 피스
 // ============================================================
-function draw() {
-  // ① 배경 지우기 — 완성
+function getGhost() {
+  let dy = 0;
+  while (!isCollision(currentPiece, 0, dy + 1)) dy++;
+  return { ...currentPiece, y: currentPiece.y + dy };
+}
+
+// ============================================================
+//  ■ 홀드
+//    holdUsed가 true면 즉시 반환 → 블록 설치(createPiece) 후에야 다시 사용 가능
+// ============================================================
+function holdCurrentPiece() {
+  if (holdUsed) return;  // ★ 이미 이번 블록에서 홀드 사용 → 무시
+  holdUsed = true;       // ★ 즉시 잠금 (createPiece()에서만 해제)
+
+  lockFirstTime = 0;
+  lockResetTime = 0;
+
+  if (holdPiece === null) {
+    // 처음 홀드: 현재 블록 보관 → 큐에서 다음 블록 꺼냄
+    holdPiece    = { type: currentPiece.type, color: currentPiece.color,
+                     shape: SHAPES[currentPiece.type].map(r => [...r]) };
+    createPiece();      // createPiece 내부에서 holdUsed = false 하므로 다시 잠금
+    holdUsed = true;    // 방금 홀드 사용했으니 다시 잠금
+  } else {
+    // 이후 홀드: 홀드 ↔ 현재 교체
+    const prevHold = holdPiece;
+    holdPiece = { type: currentPiece.type, color: currentPiece.color,
+                  shape: SHAPES[currentPiece.type].map(r => [...r]) };
+    currentPiece  = makePiece(prevHold.type); // 홀드에서 꺼내 새 블록으로
+    // holdUsed는 이미 true → 다음 블록 설치 전까지 홀드 불가
+  }
+}
+
+// ============================================================
+//  ■ 블록 고정 + 다음 블록 생성
+// ============================================================
+function lockAndSpawn() {
+  // ★ 강제 설치든 일반 설치든, 항상 고스트(최종 낙하) 위치로 스냅 후 고정
+  const ghost    = getGhost();
+  currentPiece.y = ghost.y;
+
+  placePiece();
+  clearLines();
+  updateUI();
+  createPiece();
+  lockFirstTime = 0;
+  lockResetTime = 0;
+
+  if (isCollision(currentPiece, 0, 0)) {
+    gameOver = true;
+    document.getElementById('finalScore').textContent = '최종 점수: ' + score.toLocaleString();
+    showGameOver();
+  }
+}
+
+
+// ============================================================
+//  ■ 그리기 헬퍼
+// ============================================================
+function drawBlock(cx, x, y, color, alpha = 1) {
+  cx.globalAlpha = alpha;
+  cx.fillStyle = color;
+  cx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
+  cx.fillStyle = 'rgba(255,255,255,0.18)';
+  cx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE - 1, 4);
+  cx.globalAlpha = 1;
+}
+
+// ============================================================
+//  ■ draw (메인 캔버스)
+// ============================================================
+function draw(now) {
+  // 배경
   ctx.fillStyle = '#0f172a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // 격자 선 (옅게)
+  // 격자
   ctx.strokeStyle = '#1e293b';
   ctx.lineWidth = 0.5;
   for (let c = 0; c < COLS; c++) {
-    ctx.beginPath();
-    ctx.moveTo(c * BLOCK_SIZE, 0);
-    ctx.lineTo(c * BLOCK_SIZE, canvas.height);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(c*BLOCK_SIZE,0); ctx.lineTo(c*BLOCK_SIZE,canvas.height); ctx.stroke();
   }
   for (let r = 0; r < ROWS; r++) {
-    ctx.beginPath();
-    ctx.moveTo(0, r * BLOCK_SIZE);
-    ctx.lineTo(canvas.width, r * BLOCK_SIZE);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,r*BLOCK_SIZE); ctx.lineTo(canvas.width,r*BLOCK_SIZE); ctx.stroke();
   }
 
-  // TODO ②: board 고정 블록 그리기
-  //   for (let r = 0; r < ROWS; r++) {
-  //     for (let c = 0; c < COLS; c++) {
-  //       if (board[r][c]) drawBlock(c, r, board[r][c]);
-  //     }
-  //   }
+  // 고정된 블록
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (board[r][c]) drawBlock(ctx, c, r, board[r][c]);
 
-  // TODO ③: currentPiece 그리기
-  //   currentPiece.shape 의 값이 1인 칸을
-  //   drawBlock(currentPiece.x + col, currentPiece.y + row, currentPiece.color) 로 그리기
+  if (currentPiece) {
+    // 고스트 (설치 예정 위치)
+    const ghost = getGhost();
+    if (ghost.y !== currentPiece.y) {
+      for (let row = 0; row < ghost.shape.length; row++)
+        for (let col = 0; col < ghost.shape[row].length; col++)
+          if (ghost.shape[row][col])
+            drawBlock(ctx, ghost.x+col, ghost.y+row, currentPiece.color, 0.22);
+    }
+
+    // 현재 블록
+    for (let row = 0; row < currentPiece.shape.length; row++)
+      for (let col = 0; col < currentPiece.shape[row].length; col++)
+        if (currentPiece.shape[row][col])
+          drawBlock(ctx, currentPiece.x+col, currentPiece.y+row, currentPiece.color);
+
+    // 락다운 진행 바
+    // 노란 바: LOCK_DELAY(0.7초) 기준 리셋 타이머
+    // 빨간 바: LOCK_MAX(3초) 기준 절대 타이머
+    if (lockFirstTime > 0) {
+      const sinceReset = Math.min(now - lockResetTime, LOCK_DELAY);
+      const ratioReset  = sinceReset / LOCK_DELAY;
+      // 노란색: 리셋 가능 타이머
+      ctx.fillStyle = `rgba(245,158,11,0.75)`;
+      ctx.fillRect(0, canvas.height - 6, canvas.width * ratioReset, 3);
+
+      const sinceFirst = Math.min(now - lockFirstTime, LOCK_MAX);
+      const ratioMax   = sinceFirst / LOCK_MAX;
+      // 빨간색: 절대 타이머
+      ctx.fillStyle = `rgba(239,68,68,0.55)`;
+      ctx.fillRect(0, canvas.height - 3, canvas.width * ratioMax, 3);
+    }
+  }
+
+  drawHold();
+  drawNext();
 }
 
 // ============================================================
-//  TODO 8: 키보드 입력 처리
-//  ─────────────────────────────────────────────────────────
-//  ArrowLeft  : 충돌 없으면 currentPiece.x -= 1
-//  ArrowRight : 충돌 없으면 currentPiece.x += 1
-//  ArrowDown  : 충돌 없으면 currentPiece.y += 1
-//               충돌이면  → placePiece() → clearLines() → createPiece()
-//                         → 새 블록도 충돌이면 gameOver = true
-//  ArrowUp    : rotate(currentPiece.shape) 후
-//               충돌 없으면 currentPiece.shape = 회전된 shape
-//               충돌이면 취소 (기존 shape 유지)
+//  ■ 홀드 캔버스
+// ============================================================
+function drawHold() {
+  hCtx.fillStyle = '#0f172a';
+  hCtx.fillRect(0, 0, holdCanvas.width, holdCanvas.height);
+  if (!holdPiece) return;
+
+  const bs    = PREVIEW_BS;
+  const shape = holdPiece.shape;
+  const offX  = Math.floor((holdCanvas.width  / bs - shape[0].length) / 2);
+  const offY  = Math.floor((holdCanvas.height / bs - shape.length)    / 2);
+
+  // 홀드 사용 중이면 흐리게 표시
+  hCtx.globalAlpha = holdUsed ? 0.35 : 1;
+  for (let r = 0; r < shape.length; r++)
+    for (let c = 0; c < shape[r].length; c++)
+      if (shape[r][c]) {
+        hCtx.fillStyle = holdPiece.color;
+        hCtx.fillRect((offX+c)*bs, (offY+r)*bs, bs-1, bs-1);
+        hCtx.fillStyle = 'rgba(255,255,255,0.18)';
+        hCtx.fillRect((offX+c)*bs, (offY+r)*bs, bs-1, 3);
+      }
+  hCtx.globalAlpha = 1;
+}
+
+// ============================================================
+//  ■ 넥스트 캔버스 (5개)
+// ============================================================
+function drawNext() {
+  nCtx.fillStyle = '#0f172a';
+  nCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
+
+  const bs    = PREVIEW_BS;
+  const slotH = 76;
+
+  for (let i = 0; i < Math.min(nextQueue.length, 5); i++) {
+    const type  = nextQueue[i];
+    const shape = SHAPES[type];
+    const color = COLORS[type];
+    const offX  = Math.floor((nextCanvas.width / bs - shape[0].length) / 2);
+    const baseY = i * slotH;
+    const offY  = Math.floor((slotH / bs - shape.length) / 2);
+
+    for (let r = 0; r < shape.length; r++)
+      for (let c = 0; c < shape[r].length; c++)
+        if (shape[r][c]) {
+          nCtx.fillStyle = color;
+          nCtx.fillRect((offX+c)*bs, baseY+(offY+r)*bs, bs-1, bs-1);
+          nCtx.fillStyle = 'rgba(255,255,255,0.18)';
+          nCtx.fillRect((offX+c)*bs, baseY+(offY+r)*bs, bs-1, 3);
+        }
+
+    if (i < 4) {
+      nCtx.strokeStyle = '#334155'; nCtx.lineWidth = 1;
+      nCtx.beginPath();
+      nCtx.moveTo(4, baseY+slotH); nCtx.lineTo(nextCanvas.width-4, baseY+slotH);
+      nCtx.stroke();
+    }
+  }
+}
+
+// ============================================================
+//  ■ 락다운 시작 헬퍼
+// ============================================================
+function startLockdown(now) {
+  if (lockFirstTime === 0) {
+    lockFirstTime = now;   // 이번 블록 첫 착지 — LOCK_MAX 기준, 절대 바뀌지 않음
+    lockResetTime = now;   // 리셋 기준 타이머 시작
+  }
+}
+
+function resetLockDelay(now) {
+  // 회전/이동으로 리셋 — LOCK_MAX는 유지
+  lockResetTime = now;
+}
+
+// ============================================================
+//  ■ 키보드 입력
 // ============================================================
 document.addEventListener('keydown', (e) => {
   if (gameOver) return;
   if (!currentPiece) return;
 
+  const preventKeys = ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '];
+  if (preventKeys.includes(e.key)) e.preventDefault();
+
+  // Ctrl+Z 브라우저 undo 방지
+  if ((e.key === 'z' || e.key === 'Z') && e.ctrlKey) e.preventDefault();
+
+  const now = performance.now();
+
   switch (e.key) {
     case 'ArrowLeft':
-      // TODO: 왼쪽 이동
+      if (!isCollision(currentPiece, -1, 0)) {
+        currentPiece.x -= 1;
+        if (lockFirstTime > 0) resetLockDelay(now);
+      }
       break;
 
     case 'ArrowRight':
-      // TODO: 오른쪽 이동
+      if (!isCollision(currentPiece, 1, 0)) {
+        currentPiece.x += 1;
+        if (lockFirstTime > 0) resetLockDelay(now);
+      }
       break;
 
     case 'ArrowDown':
-      // TODO: 빠른 하강
+      // 소프트 드롭: 한 칸 내리기 (score += 1; 삭제)
+      if (!isCollision(currentPiece, 0, 1)) {
+        currentPiece.y += 1;
+        // score += 1;  <-- 이 줄을 삭제하거나 주석 처리합니다.
+        lastTime = now;
+        
+        if (!isCollision(currentPiece, 0, 1)) {
+          lockFirstTime = 0;
+          lockResetTime = 0;
+        } else {
+          startLockdown(now);
+        }
+      }
       break;
 
+    case ' ':
+      // 하드 드롭: 즉시 고스트 위치로 이동 후 설치 (score += dropped * 2; 삭제)
+      {
+        const ghost   = getGhost();
+        // const dropped = ghost.y - currentPiece.y; <-- 필요 없어진 변수 제거
+        // score        += dropped * 2;              <-- 이 줄을 삭제하거나 주석 처리합니다.
+        currentPiece.y = ghost.y;
+        lockAndSpawn();
+      }
+      break;
+
+    // 시계 방향 회전: ↑, X
     case 'ArrowUp':
-      // TODO: 블록 회전
+    case 'x': case 'X':
+      tryRotate(rotateCW(currentPiece.shape));
+      break;
+
+    // 반시계 방향 회전: Ctrl, Z
+    case 'Control':
+      tryRotate(rotateCCW(currentPiece.shape));
+      break;
+    case 'z': case 'Z':
+      if (!e.ctrlKey) tryRotate(rotateCCW(currentPiece.shape)); // Ctrl+Z는 브라우저 단축키 방지
+      else            tryRotate(rotateCCW(currentPiece.shape));  // Ctrl+Z도 반시계 회전으로 처리
+      break;
+
+    // 180도 회전: A
+    case 'a': case 'A':
+      tryRotate(rotate180(currentPiece.shape));
+      break;
+
+    // 홀드: Shift, C
+    case 'Shift':
+    case 'c': case 'C':
+      holdCurrentPiece();
       break;
   }
 
-  draw();  // 이동 후 바로 화면 갱신
+  draw(now);
 });
 
 // ============================================================
-//  TODO 9: gameLoop(timestamp)
-//  ─────────────────────────────────────────────────────────
-//  requestAnimationFrame 으로 반복 호출되는 게임 루프입니다.
-//
-//  동작:
-//    1. gameOver 이면 리턴
-//    2. deltaTime = timestamp - lastTime
-//    3. deltaTime > dropInterval 이면:
-//       a. 충돌 없으면 currentPiece.y += 1
-//       b. 충돌이면:
-//          - placePiece()
-//          - clearLines()
-//          - createPiece()
-//          - 새 블록도 충돌이면 gameOver = true, 오버레이 표시
-//       c. lastTime = timestamp
-//    4. draw()
-//    5. requestAnimationFrame(gameLoop)
+//  ■ gameLoop
 // ============================================================
 function gameLoop(timestamp) {
   if (gameOver) return;
 
-  // TODO: 여기에 구현하세요
+  const deltaTime = timestamp - lastTime;
 
-  draw();  // 일단 매 프레임 draw 는 실행되도록 유지
+  // 자동 하강 (dropInterval마다 한 칸)
+  if (deltaTime > dropInterval) {
+    if (!isCollision(currentPiece, 0, 1)) {
+      currentPiece.y += 1;
+    }
+    lastTime = timestamp;
+  }
+
+  // 바닥 접촉 여부 확인 → 락다운 관리
+  const onGround = isCollision(currentPiece, 0, 1);
+
+  if (onGround) {
+    startLockdown(timestamp);
+
+    const sinceReset = timestamp - lockResetTime;  // LOCK_DELAY 기준
+    const sinceFirst = timestamp - lockFirstTime;  // LOCK_MAX  기준
+
+    // 0.7초(LOCK_DELAY) 경과 OR 3초(LOCK_MAX) 경과 → 강제 설치
+    if (sinceReset >= LOCK_DELAY || sinceFirst >= LOCK_MAX) {
+      lockAndSpawn();
+      lastTime = timestamp;
+      draw(timestamp);
+      requestAnimationFrame(gameLoop);
+      return;
+    }
+  } else {
+    // 공중이면 락다운 타이머 리셋
+    lockFirstTime = 0;
+    lockResetTime = 0;
+  }
+
+  draw(timestamp);
   requestAnimationFrame(gameLoop);
 }
 
 // ============================================================
-//  ■ UI 업데이트 헬퍼 — 이미 완성되어 있습니다
+//  ■ UI 업데이트
 // ============================================================
 function updateUI() {
-  document.getElementById('scoreDisplay').textContent = score;
+  document.getElementById('scoreDisplay').textContent = score.toLocaleString();
   document.getElementById('levelDisplay').textContent = level;
   document.getElementById('linesDisplay').textContent = linesCleared;
 }
 
 // ============================================================
-//  ■ 게임 시작 / 재시작 — 이미 완성되어 있습니다
+//  ■ 게임 시작 / 재시작
 // ============================================================
 function startGame() {
   initBoard();
@@ -459,7 +731,14 @@ function startGame() {
   gameOver     = false;
   dropInterval = 1000;
   lastTime     = 0;
+  holdPiece    = null;
+  holdUsed     = false;
+  nextQueue    = [];
+  bag          = [];
+  lockFirstTime = 0;
+  lockResetTime = 0;
 
+  fillQueue();
   createPiece();
   updateUI();
 
@@ -469,13 +748,10 @@ function startGame() {
 
 document.getElementById('restartBtn').addEventListener('click', startGame);
 
-// 게임 오버 시 오버레이 표시는 gameLoop 안에서 처리
-// 아래 함수를 호출해서 오버레이를 표시하세요:
 function showGameOver() {
   document.getElementById('overlay').classList.add('show');
 }
 
-// 게임 시작!
 startGame();
 </script>
 </body>
